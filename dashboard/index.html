@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<title>Nexora Dashboard</title>
+<style>
+  body { font-family: -apple-system, Arial, sans-serif; background: #0f1115; color: #e6e6e6; margin: 0; padding: 24px; }
+  h1 { margin-bottom: 4px; }
+  .subtitle { color: #888; margin-bottom: 24px; }
+  .stats { display: flex; gap: 16px; margin-bottom: 24px; }
+  .card { background: #1a1d24; padding: 16px 20px; border-radius: 10px; flex: 1; }
+  .card .num { font-size: 28px; font-weight: 700; }
+  .card .label { color: #999; font-size: 13px; }
+  table { width: 100%; border-collapse: collapse; background: #1a1d24; border-radius: 10px; overflow: hidden; }
+  th, td { text-align: left; padding: 10px 14px; border-bottom: 1px solid #2a2d34; font-size: 14px; }
+  th { color: #999; font-weight: 500; }
+  .status { padding: 3px 10px; border-radius: 20px; font-size: 12px; font-weight: 600; }
+  .SUCCESS { background: #113d24; color: #4ade80; }
+  .PENDING { background: #3d3311; color: #facc15; }
+  .PROCESSING { background: #113d3d; color: #22d3ee; }
+  .FAILED, .DEAD_LETTER { background: #3d1111; color: #f87171; }
+  button { background: #6366f1; color: white; border: none; padding: 5px 12px; border-radius: 6px; cursor: pointer; font-size: 12px; }
+  button:hover { background: #4f46e5; }
+  input { background: #1a1d24; border: 1px solid #2a2d34; color: #e6e6e6; padding: 8px 12px; border-radius: 6px; margin-bottom: 16px; width: 260px; }
+</style>
+</head>
+<body>
+  <h1>⚡ Nexora Dashboard</h1>
+  <div class="subtitle">Webhook Automation Platform</div>
+
+  <input id="apiBase" value="http://localhost:4000" />
+
+  <div class="stats" id="stats"></div>
+
+  <table>
+    <thead>
+      <tr><th>Event ID</th><th>Type</th><th>Status</th><th>Attempts</th><th>Time</th><th></th></tr>
+    </thead>
+    <tbody id="rows"></tbody>
+  </table>
+
+<script>
+async function load() {
+  const base = document.getElementById('apiBase').value;
+  const stats = await fetch(base + '/api/events/stats').then(r => r.json());
+  document.getElementById('stats').innerHTML = `
+    <div class="card"><div class="num">${stats.total}</div><div class="label">Total Events</div></div>
+    <div class="card"><div class="num">${stats.success}</div><div class="label">Success</div></div>
+    <div class="card"><div class="num">${stats.pending}</div><div class="label">Pending</div></div>
+    <div class="card"><div class="num">${stats.failed}</div><div class="label">Failed</div></div>
+    <div class="card"><div class="num">${stats.deadLetter}</div><div class="label">Dead Letter</div></div>
+  `;
+
+  const events = await fetch(base + '/api/events').then(r => r.json());
+  document.getElementById('rows').innerHTML = events.map(e => `
+    <tr>
+      <td>${e.eventId}</td>
+      <td>${e.eventType}</td>
+      <td><span class="status ${e.status}">${e.status}</span></td>
+      <td>${e.attempts}</td>
+      <td>${new Date(e.createdAt).toLocaleTimeString()}</td>
+      <td>${(e.status === 'DEAD_LETTER' || e.status === 'FAILED') ? `<button onclick="replay('${e.id}')">Replay</button>` : ''}</td>
+    </tr>
+  `).join('');
+}
+
+async function replay(id) {
+  const base = document.getElementById('apiBase').value;
+  await fetch(base + '/api/events/' + id + '/replay', { method: 'POST' });
+  load();
+}
+
+load();
+setInterval(load, 3000); // auto-refresh every 3s
+</script>
+</body>
+</html>

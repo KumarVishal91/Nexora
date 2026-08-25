@@ -1,0 +1,30 @@
+// STAGE 1: using SQLite so you can start with ZERO setup (no Postgres install needed).
+// When you're ready for "production mode", switch to Postgres:
+//   1. Set DATABASE_URL="postgresql://user:pass@localhost:5432/nexora" in .env
+//   2. Change provider below from "sqlite" to "postgresql"
+//   3. Run: npx prisma migrate dev
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+model Event {
+  id           String   @id @default(cuid())
+  eventId      String   @unique // idempotency key sent by the source (e.g. "evt_123")
+  eventType    String   // e.g. "payment.success"
+  source       String   @default("generic") // e.g. "stripe", "github"
+  payload      String   // JSON stringified raw payload
+  status       String   @default("PENDING") // PENDING | PROCESSING | SUCCESS | FAILED | DEAD_LETTER
+  attempts     Int      @default(0)
+  lastError    String?
+  createdAt    DateTime @default(now())
+  processedAt  DateTime?
+
+  @@index([status])
+  @@index([eventType])
+}
